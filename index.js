@@ -29,6 +29,7 @@ async function run() {
 
     const classCollection = client.db("summerDb").collection("class");
     const instructorCollection = client.db("summerDb").collection("instructors");
+    const selectedClassCollection = client.db("summerDb").collection("selectedClass");
 
     app.get('/class', async(req, res) => {
         const result = await classCollection.find().toArray();
@@ -37,6 +38,14 @@ async function run() {
 
     app.get('/instructors', async(req, res) => {
         const result = await instructorCollection.find().toArray();
+        res.send(result);
+    })
+
+    //selected class
+    app.post('/selectedClass', async(req, res) => {
+        const cls = req.body;
+        console.log(cls);
+        const result = await selectedClassCollection.insertOne(cls);
         res.send(result);
     })
 

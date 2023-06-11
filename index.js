@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -31,6 +32,12 @@ async function run() {
     const classCollection = client.db("summerDb").collection("class");
     const instructorCollection = client.db("summerDb").collection("instructors");
     const cartCollection = client.db("summerDb").collection("carts");
+
+    app.post('/jwt', (req, res)=> {
+        const user = req.body;
+        const token = jwt.sign(user, env.process.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+        res.send({token}) 
+    })
 
     //users related apis
     app.get('/users', async (req, res) =>{
@@ -76,6 +83,13 @@ async function run() {
         const result = await usersCollection.updateOne(filter, updateDoc);
         res.send(result);
 
+    })
+
+    app.delete('/users/:id', async(req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await usersCollection.deleteOne(query);
+        res.send(result);
     })
 
     //class related api

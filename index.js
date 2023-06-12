@@ -13,7 +13,7 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization;
     if(!authorization){
-        return res.send.status(401).send({error: true, message: 'unauthorized access'});
+        return res.status(401).send({error: true, message: 'unauthorized access'});
     }
 
     const token = authorization.split(' ')[1];
@@ -56,8 +56,30 @@ async function run() {
         res.send({token}) 
     })
 
+    const verifyAdmin = async(req, res, next) => {
+        const email = req.decoded.email;
+        const query = {email: email}
+        const user = await usersCollection.findOne(query);
+        if(user?.role !== 'admin' ){
+            return res.status(403).send({error: true, message: 'forbidden message'});
+        }
+        next();
+    }
+
+    const verifyInstructor = async(req, res, next) => {
+        const email = req.decoded.email;
+        const query = {email: email}
+        const user = await usersCollection.findOne(query);
+        if(user?.role !== 'instructor' ){
+            return res.status(403).send({error: true, message: 'forbidden message'});
+        }
+        next();
+    }
+
+
+
     //users related apis
-    app.get('/users', async (req, res) =>{
+    app.get('/users',verifyJWT, verifyAdmin, async (req, res) =>{
         const result = await usersCollection.find().toArray();
         res.send(result);
     })
@@ -71,6 +93,34 @@ async function run() {
             return res.send({message: 'user already exists'})
         }
         const result = await usersCollection.insertOne(user);
+        res.send(result);
+    })
+
+    //security layer: verifyJWT
+
+    app.get('/users/admin/:email',verifyJWT, async(req,res) => {
+        const email = req.params.email;
+
+        if(req.decoded.email !== email){
+            res.send({admin: false})
+        }
+
+        const query = {email: email}
+        const user = await usersCollection.findOne(query);
+        const result = {admin: user?.role === 'admin'}
+        res.send(result);
+    })
+
+    app.get('/users/instructor/:email',verifyJWT, async(req,res) => {
+        const email = req.params.email;
+
+        if(req.decoded.email !== email){
+            res.send({instructor: false})
+        }
+
+        const query = {email: email}
+        const user = await usersCollection.findOne(query);
+        const result = {instructor: user?.role === 'instructor'}
         res.send(result);
     })
 
@@ -112,6 +162,12 @@ async function run() {
     //class related api
     app.get('/class', async(req, res) => {
         const result = await classCollection.find().toArray();
+        res.send(result);
+    })
+
+    app.post('/class', verifyJWT, verifyInstructor, async(req, res) => {
+        const newClass = req.body;
+        const result = await classCollection.insertOne(newClass)
         res.send(result);
     })
 

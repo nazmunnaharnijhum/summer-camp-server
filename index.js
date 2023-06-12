@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 
@@ -49,6 +50,7 @@ async function run() {
     const classCollection = client.db("summerDb").collection("class");
     const instructorCollection = client.db("summerDb").collection("instructors");
     const cartCollection = client.db("summerDb").collection("carts");
+    const paymentCollection = client.db("summerDb").collection("payments");
 
     app.post('/jwt', (req, res)=> {
         const user = req.body;
@@ -171,6 +173,35 @@ async function run() {
         res.send(result);
     })
 
+
+    app.patch('/class/approved/:id', async(req, res) => {
+        const id = req.params.id;
+        const filter = {_id: new ObjectId(id)};
+        const updateDoc = {
+            $set: {
+                status: 'approved'
+            },
+        };
+
+        const result = await classCollection.updateOne(filter, updateDoc);
+        res.send(result);
+
+    })
+
+    app.patch('/class/denied/:id', async(req, res) => {
+        const id = req.params.id;
+        const filter = {_id: new ObjectId(id)};
+        const updateDoc = {
+            $set: {
+                status: 'denied'
+            },
+        };
+
+        const result = await classCollection.updateOne(filter, updateDoc);
+        res.send(result);
+
+    })
+
     //instructor related apis
     app.get('/instructors', async(req, res) => {
         const result = await instructorCollection.find().toArray();
@@ -207,6 +238,30 @@ async function run() {
         const result = await cartCollection.deleteOne(query);
         res.send(result);
     })
+
+    //create payment intent
+    app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+        const { price } = req.body;
+        const amount = parseInt(price * 100);
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: 'usd',
+          payment_method_types: ['card']
+        });
+  
+        res.send({
+          clientSecret: paymentIntent.client_secret
+        })
+      })
+
+
+      //payment apis
+
+      app.post('/payments',  async (req, res) => {
+        const payment = req.body;
+        const result = await paymentCollection.insertOne(payment);
+        res.send(result);
+      })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
